@@ -265,7 +265,23 @@ export async function assignUserRole(input: {
         };
       }
 
-      result = data as AssignUserRoleResult;
+      const rpcResult = data as {
+        success: boolean;
+        data: AssignUserRoleResult;
+        error?: string;
+      };
+
+      if (!rpcResult.success) {
+        return {
+          success: false,
+          error: {
+            code: "BOOTSTRAP_FAILED",
+            message: rpcResult.error ?? "First-admin bootstrap failed",
+          },
+        };
+      }
+
+      result = rpcResult.data;
     } else {
       const { data, error } = await (supabase.rpc as unknown as (
         fn: string,
