@@ -1,5 +1,19 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { createServerClient } from "@supabase/ssr";
+
+const PUBLIC_ROUTES = [
+  "/",
+  "/rooms",
+  "/cafe",
+  "/gallery",
+  "/pricing",
+  "/community",
+  "/about",
+  "/contact",
+  "/login",
+  "/register",
+];
 
 const rateLimitMap = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -23,6 +37,33 @@ function setSecurityHeaders(headers: Headers, pathname: string) {
   }
 }
 
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some((route) => {
+    if (route === "/") return pathname === "/";
+    return pathname === route || pathname.startsWith(route + "/");
+  });
+}
+
+async function isAuthenticated(request: NextRequest): Promise<boolean> {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll() {
+          /* read-only — session refresh handled by updateSession */
+        },
+      },
+    },
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+  return user !== null;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -33,7 +74,7 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // API routes — CORS only
+  // API routes — session refresh only
   if (pathname.startsWith("/api/")) {
     return await updateSession(request);
   }
@@ -46,6 +87,15 @@ export async function proxy(request: NextRequest) {
 
   // Session refresh via existing Supabase middleware
   const response = await updateSession(request);
+
+  // Auth enforcement — protect dashboard routes
+  if (!isPublicRoute(pathname) && pathname.startsWith("/dashboard")) {
+    const authed = await isAuthenticated(request);
+    if (!authed) {
+      const loginUrl = new URL("/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
 
   // Security headers for dashboard routes
   setSecurityHeaders(response.headers, pathname);

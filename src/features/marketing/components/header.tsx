@@ -3,13 +3,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import { navLinks, siteConfig, socialLinks } from "@/features/marketing/config/navigation";
+import type { Session } from "@supabase/supabase-js";
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
 
   useEffect(() => {
     function handleScroll() {
@@ -17,6 +21,14 @@ export function Header() {
     }
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoaded(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -63,6 +75,18 @@ export function Header() {
           >
             {socialLinks.phone}
           </a>
+          {authLoaded && (
+            <Link
+              href={session ? "/dashboard" : "/login"}
+              className="inline-flex h-9 items-center justify-center rounded-full border px-4 text-sm font-medium transition-all hover:bg-muted/50"
+            >
+              {session ? (
+                <><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />Dashboard</>
+              ) : (
+                <><LogIn className="h-3.5 w-3.5 mr-1.5" />Admin Login</>
+              )}
+            </Link>
+          )}
           <Link
             href="/contact"
             className="inline-flex h-9 items-center justify-center rounded-full bg-foreground px-5 text-sm font-medium text-background transition-all hover:opacity-90"
@@ -125,6 +149,25 @@ export function Header() {
                     </Link>
                   </motion.div>
                 ))}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: navLinks.length * 0.05 }}
+                >
+                  {authLoaded && (
+                    <Link
+                      href={session ? "/dashboard" : "/login"}
+                      onClick={() => setIsMobileOpen(false)}
+                      className="flex items-center gap-2 rounded-lg px-4 py-3 text-lg font-medium transition-colors hover:bg-muted"
+                    >
+                      {session ? (
+                        <><LayoutDashboard className="h-5 w-5" />Dashboard</>
+                      ) : (
+                        <><LogIn className="h-5 w-5" />Admin Login</>
+                      )}
+                    </Link>
+                  )}
+                </motion.div>
               </nav>
               <div className="mt-8 space-y-4 border-t pt-6">
                 <a

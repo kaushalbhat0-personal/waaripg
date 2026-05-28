@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient as createServerClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logging";
 import type { OnboardingState, OnboardingStep, OnboardingActionResponse } from "../types";
 
@@ -35,21 +35,28 @@ function toState(row: OnboardingProgressRow): OnboardingState {
   };
 }
 
-async function getClient() {
+async function getAuthUser() {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user;
+}
+
+async function getAdmin() {
   try {
     return await createAdminClient();
   } catch {
-    return await createServerClient();
+    return await createClient();
   }
 }
 
 export async function getOnboardingState(): Promise<OnboardingState | null> {
   try {
-    const supabase = await getClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (!user) return null;
 
-    const { data } = await supabase
+    const admin = await getAdmin();
+    const { data } = await admin
       .from("onboarding_progress")
       .select("*")
       .eq("user_id", user.id)
@@ -70,11 +77,11 @@ export async function saveOnboardingState(
   state: Partial<OnboardingState> & { completed_steps: OnboardingStep[] },
 ): Promise<OnboardingActionResponse> {
   try {
-    const supabase = await getClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (!user) return { success: false, error: "Not authenticated" };
 
-    const { data: existing } = await supabase
+    const admin = await getAdmin();
+    const { data: existing } = await admin
       .from("onboarding_progress")
       .select("id")
       .eq("user_id", user.id)
@@ -91,14 +98,14 @@ export async function saveOnboardingState(
     };
 
     if (existing) {
-      const { error } = await supabase
+      const { error } = await admin
         .from("onboarding_progress")
         .update(payload as never)
         .eq("user_id", user.id);
 
       if (error) return { success: false, error: error.message };
     } else {
-      const { error } = await supabase
+      const { error } = await admin
         .from("onboarding_progress")
         .insert(payload as never);
 
