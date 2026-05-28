@@ -36,8 +36,12 @@ export async function login(input: LoginInput): Promise<ActionResponse> {
   } = await supabase.auth.getUser();
 
   if (user) {
+    console.log(`[AUTH_DEBUG] user.id=${user.id} email=${user.email}`);
+
     const { hasRole, assignUserRole } = await import("@/services/rbac");
     const hasExistingRole = await hasRole(user.id);
+
+    console.log(`[AUTH_DEBUG] hasRole result=${hasExistingRole}`);
 
     if (!hasExistingRole) {
       // Attempt bootstrap: if no admins exist, this user becomes admin
@@ -46,6 +50,13 @@ export async function login(input: LoginInput): Promise<ActionResponse> {
         role_name: "admin",
         bootstrap: true,
       });
+
+      console.log(`[AUTH_DEBUG] assignUserRole success=${bootstrapResult.success}`);
+      if (!bootstrapResult.success) {
+        console.log(`[AUTH_DEBUG] assignUserRole error=`, JSON.stringify(bootstrapResult.error));
+      } else {
+        console.log(`[AUTH_DEBUG] assignUserRole data=`, JSON.stringify(bootstrapResult.data));
+      }
 
       if (!bootstrapResult.success) {
         // Bootstrap failed — existing admin exists, user needs manual setup

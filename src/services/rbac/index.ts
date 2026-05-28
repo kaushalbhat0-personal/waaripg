@@ -244,12 +244,18 @@ export async function assignUserRole(input: {
   bootstrap?: boolean;
 }): Promise<ActionResponse<AssignUserRoleResult>> {
   try {
+    console.log(`[RBAC_DEBUG] assignUserRole input=`, JSON.stringify(input));
+
     const { createAdminClient } = await import("@/lib/supabase/server");
+    console.log(`[RBAC_DEBUG] assignUserRole SUPABASE_SERVICE_ROLE_KEY present=${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+
     const supabase = await createAdminClient();
 
     let result: AssignUserRoleResult;
 
     if (input.bootstrap) {
+      console.log(`[RBAC_DEBUG] Calling bootstrap_first_admin RPC`);
+
       const { data, error } = await (supabase.rpc as unknown as (
         fn: string,
         params: Record<string, unknown>,
@@ -257,6 +263,9 @@ export async function assignUserRole(input: {
         "bootstrap_first_admin",
         { p_user_id: input.user_id },
       );
+
+      console.log(`[RBAC_DEBUG] bootstrap_first_admin error=`, error ? JSON.stringify(error) : "null");
+      console.log(`[RBAC_DEBUG] bootstrap_first_admin data=`, data ? JSON.stringify(data) : "null");
 
       if (error) {
         return {
@@ -271,7 +280,10 @@ export async function assignUserRole(input: {
         error?: string;
       };
 
+      console.log(`[RBAC_DEBUG] bootstrap_first_admin rpcResult.success=${rpcResult?.success}`);
+
       if (!rpcResult.success) {
+        console.log(`[RBAC_DEBUG] bootstrap_first_admin rpcResult.error=`, rpcResult?.error);
         return {
           success: false,
           error: {
@@ -282,6 +294,7 @@ export async function assignUserRole(input: {
       }
 
       result = rpcResult.data;
+      console.log(`[RBAC_DEBUG] bootstrap_first_admin result.id=${result?.id} already_exists=${result?.already_exists} bootstrapped=${result?.bootstrapped}`);
     } else {
       const { data, error } = await (supabase.rpc as unknown as (
         fn: string,
@@ -354,6 +367,9 @@ export async function getUserRole(userId: string): Promise<{
     const { createAdminClient } = await import("@/lib/supabase/server");
     const supabase = await createAdminClient();
 
+    console.log(`[RBAC_DEBUG] getUserRole userId=${userId}`);
+    console.log(`[RBAC_DEBUG] SUPABASE_SERVICE_ROLE_KEY present=${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+
     const { data, error } = await (supabase.rpc as unknown as (
       fn: string,
       params: Record<string, unknown>,
@@ -361,6 +377,9 @@ export async function getUserRole(userId: string): Promise<{
       "get_user_role",
       { p_user_id: userId },
     );
+
+    console.log(`[RBAC_DEBUG] getUserRole RPC error=`, error ? JSON.stringify(error) : "null");
+    console.log(`[RBAC_DEBUG] getUserRole RPC data=`, data ? JSON.stringify(data) : "null/empty");
 
     if (error || !data) return null;
 
@@ -370,8 +389,14 @@ export async function getUserRole(userId: string): Promise<{
       organization_id: string | null;
     }>;
 
+    console.log(`[RBAC_DEBUG] getUserRole rows.length=${rows.length}`);
+    if (rows.length > 0) {
+      console.log(`[RBAC_DEBUG] getUserRole row[0]=`, JSON.stringify(rows[0]));
+    }
+
     return rows[0] ?? null;
-  } catch {
+  } catch (err) {
+    console.log(`[RBAC_DEBUG] getUserRole caught error=`, err instanceof Error ? err.message : String(err));
     return null;
   }
 }
