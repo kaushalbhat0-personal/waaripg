@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient as createServerClient } from "@/lib/supabase/server";
+import { createClient as createServerClient, createAdminClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logging";
 import type { OnboardingState, OnboardingStep, OnboardingActionResponse } from "../types";
 
@@ -35,9 +35,17 @@ function toState(row: OnboardingProgressRow): OnboardingState {
   };
 }
 
+async function getClient() {
+  try {
+    return await createAdminClient();
+  } catch {
+    return await createServerClient();
+  }
+}
+
 export async function getOnboardingState(): Promise<OnboardingState | null> {
   try {
-    const supabase = await createServerClient();
+    const supabase = await getClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
@@ -45,7 +53,7 @@ export async function getOnboardingState(): Promise<OnboardingState | null> {
       .from("onboarding_progress")
       .select("*")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (data) {
       return toState(data as OnboardingProgressRow);
@@ -62,7 +70,7 @@ export async function saveOnboardingState(
   state: Partial<OnboardingState> & { completed_steps: OnboardingStep[] },
 ): Promise<OnboardingActionResponse> {
   try {
-    const supabase = await createServerClient();
+    const supabase = await getClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "Not authenticated" };
 
@@ -70,7 +78,7 @@ export async function saveOnboardingState(
       .from("onboarding_progress")
       .select("id")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     const payload: Record<string, unknown> = {
       user_id: user.id,

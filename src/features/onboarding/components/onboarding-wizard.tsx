@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   getOnboardingState,
   completeOnboardingStep,
@@ -30,21 +31,22 @@ const STEP_TITLES: Record<OnboardingStep, string> = {
   add_rooms: "Add Rooms",
   setup_curfew: "Set Curfew Rules",
   invite_staff: "Invite Staff",
-  complete: "You&apos;re All Set!",
+  complete: "You're All Set!",
 };
 
 const STEP_DESCRIPTIONS: Record<OnboardingStep, string> = {
-  welcome: "Let&apos;s get your hostel or PG management system set up in just a few steps.",
+  welcome: "Let's get your hostel or PG management system set up in just a few steps.",
   create_property: "Tell us about your first property so we can set things up.",
   add_rooms: "How many rooms does your property have?",
   setup_curfew: "Set default curfew rules for your property.",
   invite_staff: "Invite your team members to help manage the property.",
-  complete: "Your property is ready to go! Here&apos;s what to do next.",
+  complete: "Your property is ready to go! Here's what to do next.",
 };
 
 export function OnboardingWizard() {
   const [state, setState] = useState<OnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [navigating, setNavigating] = useState(false);
   const [formData, setFormData] = useState({
     propertyName: "",
     propertyType: "pg" as "pg" | "hostel",
@@ -53,7 +55,6 @@ export function OnboardingWizard() {
     staffEmails: "",
   });
   const loadedRef = useRef(false);
-
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
@@ -74,33 +75,81 @@ export function OnboardingWizard() {
           is_completed: false,
         });
       }
+    }).catch(() => {
+      setState({
+        completed_steps: [],
+        current_step: "welcome",
+        is_completed: false,
+      });
+    }).finally(() => {
       setLoading(false);
     });
   }, []);
 
   async function handleNext() {
-    if (!state) return;
+    if (!state || navigating) return;
+    setNavigating(true);
 
-    if (state.current_step === "create_property") {
-      await updateOnboardingProperty({
-        name: formData.propertyName || "My Property",
-        type: formData.propertyType,
-        total_rooms: formData.totalRooms,
-      });
+    try {
+      if (state.current_step === "create_property") {
+        const propResult = await updateOnboardingProperty({
+          name: formData.propertyName || "My Property",
+          type: formData.propertyType,
+          total_rooms: formData.totalRooms,
+        });
+        if (!propResult.success) {
+          toast.error("Failed to save property", { description: propResult.error });
+          return;
+        }
+      }
+
+      const result = await completeOnboardingStep(state.current_step);
+      if (result.state) {
+        setState(result.state);
+      } else if (result.error) {
+        toast.error("Failed to advance", { description: result.error });
+      }
+    } catch (err) {
+      toast.error("Something went wrong", { description: err instanceof Error ? err.message : "Please try again" });
+    } finally {
+      setNavigating(false);
     }
-
-    const result = await completeOnboardingStep(state.current_step);
-    if (result.state) setState(result.state);
   }
 
   async function handleSkip() {
-    const result = await skipOnboarding();
-    if (result.state) setState(result.state);
+    if (navigating) return;
+    setNavigating(true);
+
+    try {
+      const result = await skipOnboarding();
+      if (result.state) {
+        setState(result.state);
+      } else if (result.error) {
+        toast.error("Failed to skip", { description: result.error });
+      }
+    } catch (err) {
+      toast.error("Something went wrong", { description: err instanceof Error ? err.message : "Please try again" });
+    } finally {
+      setNavigating(false);
+    }
   }
 
   async function handleComplete() {
-    const result = await completeOnboardingStep("complete");
-    if (result.state) setState(result.state);
+    if (navigating) return;
+    setNavigating(true);
+
+    try {
+      const result = await completeOnboardingStep("complete");
+      if (result.state) {
+        setState(result.state);
+      } else if (result.error) {
+        toast.error("Failed to complete", { description: result.error });
+      }
+    } catch (err) {
+      toast.error("Something went wrong", { description: err instanceof Error ? err.message : "Please try again" });
+    } finally {
+      setNavigating(false);
+    }
   }
 
   if (loading) {
@@ -121,7 +170,6 @@ export function OnboardingWizard() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
       <Card className="w-full max-w-lg mx-4 p-0 overflow-hidden shadow-2xl">
-        {/* Progress bar */}
         <div className="h-1 bg-muted">
           <motion.div
             className="h-full bg-primary"
@@ -132,7 +180,6 @@ export function OnboardingWizard() {
         </div>
 
         <div className="p-6">
-          {/* Step indicators */}
           <div className="flex justify-between mb-8">
             {steps.map((step, i) => (
               <div key={step} className="flex flex-col items-center gap-1">
@@ -158,7 +205,6 @@ export function OnboardingWizard() {
             ))}
           </div>
 
-          {/* Step content */}
           <AnimatePresence mode="wait">
             <motion.div
               key={state.current_step}
@@ -180,7 +226,6 @@ export function OnboardingWizard() {
                 </div>
               </div>
 
-              {/* Welcome */}
               {state.current_step === "welcome" && (
                 <div className="space-y-4 py-4">
                   <p className="text-muted-foreground">
@@ -203,7 +248,6 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {/* Create Property */}
               {state.current_step === "create_property" && (
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -256,12 +300,10 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {/* Add Rooms */}
               {state.current_step === "add_rooms" && (
                 <div className="space-y-4 py-4">
                   <p className="text-sm text-muted-foreground">
-                    We&apos;ll create {formData.totalRooms} rooms for {formData.propertyName || "your property"}.
-                    You can configure room types, rent amounts, and capacities later.
+                    {`We'll create ${formData.totalRooms} rooms for ${formData.propertyName || "your property"}. You can configure room types, rent amounts, and capacities later.`}
                   </p>
                   <div className="rounded-lg border p-4 bg-muted/30">
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -286,7 +328,6 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {/* Setup Curfew */}
               {state.current_step === "setup_curfew" && (
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -304,7 +345,6 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {/* Invite Staff */}
               {state.current_step === "invite_staff" && (
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -322,7 +362,6 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              {/* Complete */}
               {state.current_step === "complete" && (
                 <div className="space-y-4 py-4 text-center">
                   <div className="flex justify-center">
@@ -350,21 +389,20 @@ export function OnboardingWizard() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Actions */}
           <div className="flex items-center justify-between mt-8 pt-4 border-t">
-            <Button variant="ghost" size="sm" onClick={handleSkip}>
+            <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={navigating}>
               <SkipForward className="h-4 w-4 mr-1" />
-              Skip Setup
+              {navigating ? "Working..." : "Skip Setup"}
             </Button>
             <div className="flex items-center gap-2">
               {state.current_step === "complete" ? (
-                <Button onClick={handleComplete}>
-                  Go to Dashboard
+                <Button type="button" onClick={handleComplete} disabled={navigating}>
+                  {navigating ? "Loading..." : "Go to Dashboard"}
                   <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               ) : (
-                <Button onClick={handleNext}>
-                  {state.current_step === "invite_staff" ? "Finish" : "Continue"}
+                <Button type="button" onClick={handleNext} disabled={navigating}>
+                  {navigating ? "Working..." : state.current_step === "invite_staff" ? "Finish" : "Continue"}
                   <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               )}
