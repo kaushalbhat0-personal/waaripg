@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -58,7 +58,7 @@ export function RoomFormDialog({
     reset,
     formState: { errors },
     setValue,
-    watch,
+    control,
   } = useForm<RoomFormData>({
     defaultValues: {
       room_number: "",
@@ -73,7 +73,7 @@ export function RoomFormDialog({
     },
   });
 
-  const selectedType = watch("type");
+  const selectedType = useWatch({ control, name: "type" });
 
   function handleTypeChange(value: string | null) {
     if (!value) return;

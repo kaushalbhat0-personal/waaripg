@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ export function ResidentForm({
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors },
   } = useForm<FormValues>({
@@ -67,8 +67,11 @@ export function ResidentForm({
     },
   });
 
-  const residentType = watch("type");
-  const emergencyContacts = watch("emergency_contacts") ?? [];
+  const residentType = useWatch({ control, name: "type" });
+  const emergencyContacts = useWatch({ control, name: "emergency_contacts" }) ?? [];
+  const gender = useWatch({ control, name: "gender" });
+  const idProofType = useWatch({ control, name: "id_proof_type" });
+  const year = useWatch({ control, name: "year" });
 
   function addEmergencyContact() {
     setValue("emergency_contacts", [
@@ -108,7 +111,7 @@ export function ResidentForm({
           </FormField>
           <FormField label="Resident Type" required>
             <Select
-              value={watch("type")}
+              value={residentType}
               onValueChange={(value) =>
                 setValue("type", (value ?? "pg") as "pg" | "hostel")
               }
@@ -124,7 +127,7 @@ export function ResidentForm({
           </FormField>
           <FormField label="Gender">
             <Select
-              value={watch("gender") ?? ""}
+              value={gender ?? ""}
               onValueChange={(value) =>
                 setValue("gender", (value || null) as "male" | "female" | "other" | null)
               }
@@ -179,7 +182,7 @@ export function ResidentForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="ID Proof Type">
             <Select
-              value={watch("id_proof_type") ?? ""}
+              value={idProofType ?? ""}
               onValueChange={(value) =>
                 setValue("id_proof_type", (value || null) as "aadhar" | "pan" | "voter_id" | "driving_license" | "passport" | "other" | null)
               }
@@ -229,7 +232,7 @@ export function ResidentForm({
             </FormField>
             <FormField label="Year">
               <Select
-                value={watch("year") ?? ""}
+                value={year ?? ""}
                 onValueChange={(value) => setValue("year", value || null)}
               >
                 <SelectTrigger>
