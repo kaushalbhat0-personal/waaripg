@@ -32,13 +32,7 @@
       ]
     }
   ],
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/dashboard",
-      "permanent": true
-    }
-  ],
+  "redirects": [],
   "env": {
     "NEXT_PUBLIC_APP_VERSION": "0.1.0"
   }
