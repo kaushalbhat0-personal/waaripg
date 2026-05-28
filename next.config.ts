@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ["@supabase/ssr"],
 
   images: {
     formats: ["image/avif", "image/webp"],
