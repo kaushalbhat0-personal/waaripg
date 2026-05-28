@@ -142,22 +142,32 @@ async function seed() {
     const lastName = lastNames[Math.floor(Math.random() * lastNames.length)]!;
     const org = orgs[Math.floor(Math.random() * orgs.length)]!;
 
-    residents.push({
+    const isHostel = Math.random() > 0.5;
+    const resident: Record<string, unknown> = {
       id: crypto.randomUUID(),
       organization_id: org.id,
       name: `${firstName} ${lastName}`,
       email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i + 1}@example.com`,
       phone: `+91${String(9000000000 + Math.floor(Math.random() * 100000000)).slice(0, 10)}`,
       occupation: occupations[Math.floor(Math.random() * occupations.length)]!,
-      type: Math.random() > 0.5 ? "pg" : "hostel",
+      type: isHostel ? "hostel" : "pg",
       status: "active",
       joining_date: new Date(2025, 5 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 28)).toISOString().split("T")[0],
-    });
+    };
+    if (isHostel) {
+      const institutions = ["IISc Bangalore", "NIT Calicut", "Christ University", "St. Joseph's College", "RV College of Engineering"];
+      const courses = ["B.Tech", "MBA", "M.Sc", "B.Com", "MCA"];
+      const years = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+      resident.institution_name = institutions[Math.floor(Math.random() * institutions.length)]!;
+      resident.course = courses[Math.floor(Math.random() * courses.length)]!;
+      resident.year = years[Math.floor(Math.random() * years.length)]!;
+    }
+    residents.push(resident as typeof residents[number]);
   }
 
   for (let i = 0; i < residents.length; i += 5) {
     const batch = residents.slice(i, i + 5);
-    const { error } = await supabase.from("residents").upsert(batch, { onConflict: "email" });
+    const { error } = await supabase.from("residents").insert(batch);
     if (error) console.error(`  Failed to insert residents batch:`, error.message);
   }
   console.log(`  Created ${residents.length} residents`);
@@ -231,6 +241,7 @@ async function seed() {
 
   // Get payment method IDs
   const { data: pmData } = await supabase.from("payment_methods").select("id, code");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pmMap = new Map((pmData ?? []).map((p: any) => [p.code as string, p.id as string]));
 
   const paidInvoices = invoices.filter((i) => i.status === "paid" || i.status === "pending");

@@ -3,13 +3,15 @@
 import { MobileNav } from "./mobile-nav";
 import { UserNav } from "./user-nav";
 import { NotificationCenter } from "@/features/notifications/components";
-import { Search, Command } from "lucide-react";
+import { Search, Command, HelpCircle, MessageSquarePlus } from "lucide-react";
 
 type DashboardHeaderProps = {
   onCommandOpen?: () => void;
+  onHelpOpen?: () => void;
+  onFeedbackOpen?: () => void;
 };
 
-export function DashboardHeader({ onCommandOpen }: DashboardHeaderProps) {
+export function DashboardHeader({ onCommandOpen, onHelpOpen, onFeedbackOpen }: DashboardHeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-3 sm:px-6">
       <MobileNav />
@@ -33,6 +35,25 @@ export function DashboardHeader({ onCommandOpen }: DashboardHeaderProps) {
       >
         <Search className="h-4 w-4" />
       </button>
+
+      {/* Help button */}
+      <button
+        onClick={onHelpOpen}
+        className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent"
+        title="Help Center"
+      >
+        <HelpCircle className="h-4 w-4" />
+      </button>
+
+      {/* Feedback button */}
+      <button
+        onClick={onFeedbackOpen}
+        className="hidden sm:flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent"
+        title="Send Feedback"
+      >
+        <MessageSquarePlus className="h-4 w-4" />
+      </button>
+
       <NotificationCenter />
       <UserNav />
     </header>
