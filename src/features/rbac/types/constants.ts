@@ -36,6 +36,7 @@ export const AUDIT_ACTIONS: { label: string; value: AuditAction }[] = [
   { label: "Settings Updated", value: "settings.updated" },
   { label: "User Login", value: "user.login" },
   { label: "User Logout", value: "user.logout" },
+  { label: "User Onboarded", value: "user.onboarded" },
 ];
 
 export const PERMISSION_MODULES = [

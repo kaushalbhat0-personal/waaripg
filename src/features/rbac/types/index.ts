@@ -65,7 +65,8 @@ export type AuditAction =
   | "permission.updated"
   | "settings.updated"
   | "user.login"
-  | "user.logout";
+  | "user.logout"
+  | "user.onboarded";
 
 export type AuditLog = {
   id: string;

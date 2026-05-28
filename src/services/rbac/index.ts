@@ -213,6 +213,163 @@ export async function revokeRole(
   }
 }
 
+// ============================================================
+// SAFE ROLE ASSIGNMENT (admin client, idempotent, bootstrap-aware)
+// ============================================================
+
+export type AssignUserRoleResult = {
+  id: string;
+  already_exists: boolean;
+  bootstrapped?: boolean;
+};
+
+/**
+ * assignUserRole
+ *
+ * Idempotent, audit-logged role assignment.
+ *
+ * Flow:
+ *   1. Uses admin (service-role) client to bypass RLS
+ *   2. Calls `assign_user_role_safe` RPC (validates role, prevents duplicates)
+ *   3. Records audit trail
+ *
+ * Bootstrap fallback:
+ *   If `bootstrap` is true and no admins exist, this user becomes admin.
+ */
+export async function assignUserRole(input: {
+  user_id: string;
+  role_name: string;
+  organization_id?: string;
+  assigned_by?: string;
+  bootstrap?: boolean;
+}): Promise<ActionResponse<AssignUserRoleResult>> {
+  try {
+    const { createAdminClient } = await import("@/lib/supabase/server");
+    const supabase = await createAdminClient();
+
+    let result: AssignUserRoleResult;
+
+    if (input.bootstrap) {
+      const { data, error } = await (supabase.rpc as unknown as (
+        fn: string,
+        params: Record<string, unknown>,
+      ) => Promise<{ data: unknown; error: { message: string } | null }>)(
+        "bootstrap_first_admin",
+        { p_user_id: input.user_id },
+      );
+
+      if (error) {
+        return {
+          success: false,
+          error: { code: "DB_ERROR", message: error.message },
+        };
+      }
+
+      result = data as AssignUserRoleResult;
+    } else {
+      const { data, error } = await (supabase.rpc as unknown as (
+        fn: string,
+        params: Record<string, unknown>,
+      ) => Promise<{ data: unknown; error: { message: string } | null }>)(
+        "assign_user_role_safe",
+        {
+          p_user_id: input.user_id,
+          p_role_name: input.role_name,
+          p_organization_id: input.organization_id ?? null,
+          p_assigned_by: input.assigned_by ?? null,
+        },
+      );
+
+      if (error) {
+        return {
+          success: false,
+          error: { code: "DB_ERROR", message: error.message },
+        };
+      }
+
+      result = (data as { success: boolean; data: AssignUserRoleResult; error?: string }).data;
+    }
+
+    if (!result.id) {
+      return {
+        success: false,
+        error: { code: "ASSIGN_FAILED", message: "Role assignment did not return an ID" },
+      };
+    }
+
+    // Record audit trail (non-blocking)
+    if (!result.already_exists) {
+      await recordAudit({
+        action: result.bootstrapped ? ("user.onboarded" as never) : "role.assigned",
+        entity_type: "user_roles",
+        entity_id: result.id,
+        actor_name: "system",
+        metadata: {
+          user_id: input.user_id,
+          role_name: input.role_name,
+          bootstrapped: result.bootstrapped ?? false,
+        },
+      });
+    }
+
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        code: "ERROR",
+        message: error instanceof Error ? error.message : "Failed to assign role",
+      },
+    };
+  }
+}
+
+/**
+ * getUserRole
+ *
+ * Returns the role name + id for a user, or null if unassigned.
+ */
+export async function getUserRole(userId: string): Promise<{
+  role_id: string;
+  role_name: string;
+  organization_id: string | null;
+} | null> {
+  try {
+    const { createAdminClient } = await import("@/lib/supabase/server");
+    const supabase = await createAdminClient();
+
+    const { data, error } = await (supabase.rpc as unknown as (
+      fn: string,
+      params: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message: string } | null }>)(
+      "get_user_role",
+      { p_user_id: userId },
+    );
+
+    if (error || !data) return null;
+
+    const rows = data as Array<{
+      role_id: string;
+      role_name: string;
+      organization_id: string | null;
+    }>;
+
+    return rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * hasRole
+ *
+ * Quick check if a user has any role assigned.
+ */
+export async function hasRole(userId: string): Promise<boolean> {
+  const role = await getUserRole(userId);
+  return role !== null;
+}
+
 export async function updateRolePermissions(
   roleId: string,
   permissionIds: string[],
@@ -386,6 +543,7 @@ const ACTION_LABELS: Record<string, string> = {
   "payment.recorded": "Payment Recorded",
   "payment.refunded": "Refund Issued",
   "invoice.created": "Invoice Generated",
+  "user.onboarded": "User Onboarded",
 };
 
 function getTimelineIcon(action: string): string {

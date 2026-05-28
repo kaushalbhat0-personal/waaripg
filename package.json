@@ -13,6 +13,7 @@
     "env:validate": "node -e \"require('./src/lib/env/validate').validateEnv(); console.log('Environment validation complete')\"",
     "seed": "npx tsx scripts/seed/seed.ts",
     "seed:reset": "npx tsx scripts/seed/seed.ts --reset",
+    "seed:admin": "npx tsx scripts/seed-admin.ts",
     "db:migrate": "npx supabase migration up",
     "db:push": "npx supabase db push",
     "prebuild": "npm run typecheck && npm run lint",
