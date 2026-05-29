@@ -106,12 +106,12 @@ export default function ResidentsPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Residents"
-        description="Manage PG residents and hostel students"
+        title="PG Residents"
+        description="Manage PG accommodation residents"
         actions={
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Resident
+            Add PG Resident
           </Button>
         }
       />

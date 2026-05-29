@@ -1,44 +1,45 @@
-import type { ActionResponse, QueryOptions, PaginatedResponse } from "@/types";
+import * as residentService from "@/services/residents";
+import type { ActionResponse, PaginatedResponse } from "@/types";
+import type {
+  ResidentListDto,
+  ResidentDetailDto,
+  CreateResidentInput,
+  UpdateResidentInput,
+} from "@/features/residents/types";
 
-export async function getStudents(
-  options?: QueryOptions,
-): Promise<ActionResponse<PaginatedResponse<Record<string, unknown>>>> {
-  return {
-    success: true,
-    data: {
-      data: [],
-      total: 0,
-      page: options?.pagination?.page ?? 1,
-      pageSize: options?.pagination?.pageSize ?? 10,
-      totalPages: 0,
-    },
-  };
+export async function getStudents(params: {
+  search?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<ActionResponse<PaginatedResponse<ResidentListDto>>> {
+  return residentService.getResidents({
+    ...params,
+    type: "hostel",
+  });
 }
 
 export async function getStudentById(
-  _id: string,
-): Promise<ActionResponse<Record<string, unknown> | null>> {
-  return {
-    success: true,
-    data: null,
-  };
+  id: string,
+): Promise<ActionResponse<ResidentDetailDto | null>> {
+  return residentService.getResidentById(id);
 }
 
 export async function createStudent(
-  _data: Record<string, unknown>,
-): Promise<ActionResponse<Record<string, unknown>>> {
-  throw new Error("Not implemented");
+  input: CreateResidentInput,
+): Promise<ActionResponse<ResidentDetailDto>> {
+  return residentService.createResident({ ...input, type: "hostel" });
 }
 
 export async function updateStudent(
-  _id: string,
-  _data: Record<string, unknown>,
-): Promise<ActionResponse<Record<string, unknown>>> {
-  throw new Error("Not implemented");
+  id: string,
+  input: UpdateResidentInput,
+): Promise<ActionResponse<ResidentDetailDto>> {
+  return residentService.updateResident(id, input);
 }
 
-export async function deleteStudent(
-  _id: string,
+export async function archiveStudent(
+  id: string,
 ): Promise<ActionResponse<void>> {
-  throw new Error("Not implemented");
+  return residentService.archiveResident(id);
 }

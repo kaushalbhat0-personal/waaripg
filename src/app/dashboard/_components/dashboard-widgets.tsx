@@ -16,11 +16,15 @@ import {
   AlertTriangle,
   Activity,
   Building2,
+  GraduationCap,
+  Home,
 } from "lucide-react";
 
 type DashboardMetrics = {
   totalResidents: number;
   activeResidents: number;
+  pgResidents: number;
+  hostelStudents: number;
   occupiedBeds: number;
   totalBeds: number;
   currentlyInside: number;
@@ -34,6 +38,8 @@ type DashboardMetrics = {
 const defaultMetrics: DashboardMetrics = {
   totalResidents: 0,
   activeResidents: 0,
+  pgResidents: 0,
+  hostelStudents: 0,
   occupiedBeds: 0,
   totalBeds: 0,
   currentlyInside: 0,
@@ -56,12 +62,18 @@ export function DashboardWidgets() {
   const primaryWidgets = useMemo(
     () => [
       {
-        title: "Active Residents",
-        value: metrics.activeResidents,
-        icon: Users,
+        title: "PG Residents",
+        value: metrics.pgResidents,
+        icon: Home,
         href: "/dashboard/residents",
         variant: "default" as const,
-        trend: { direction: "up" as const, value: "+3", label: "this week" },
+      },
+      {
+        title: "Hostel Students",
+        value: metrics.hostelStudents,
+        icon: GraduationCap,
+        href: "/dashboard/students",
+        variant: "default" as const,
       },
       {
         title: "Occupancy Rate",
@@ -181,9 +193,9 @@ export function DashboardWidgets() {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Total Residents", value: metrics.totalResidents, icon: Users },
+                  { label: "PG Residents", value: metrics.pgResidents, icon: Home },
+                  { label: "Hostel Students", value: metrics.hostelStudents, icon: GraduationCap },
                   { label: "Active", value: metrics.activeResidents, icon: Users },
-                  { label: "Total Beds", value: metrics.totalBeds, icon: Bed },
-                  { label: "Available", value: metrics.availableBeds, icon: Bed },
                 ].map((item) => (
                   <div key={item.label} className="rounded-lg border p-3">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">

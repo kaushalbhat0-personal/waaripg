@@ -24,12 +24,14 @@ type ResidentFormProps = {
   defaultValues?: CreateResidentInput;
   onSubmit: (data: CreateResidentInput) => Promise<void>;
   isSubmitting: boolean;
+  defaultType?: "pg" | "hostel";
 };
 
 export function ResidentForm({
   defaultValues,
   onSubmit,
   isSubmitting,
+  defaultType,
 }: ResidentFormProps) {
   const {
     register,
@@ -43,7 +45,7 @@ export function ResidentForm({
       name: defaultValues?.name ?? "",
       phone: defaultValues?.phone ?? "",
       email: defaultValues?.email ?? "",
-      type: defaultValues?.type ?? "pg",
+      type: defaultValues?.type ?? defaultType ?? "pg",
       gender: defaultValues?.gender ?? null,
       date_of_birth: defaultValues?.date_of_birth ?? null,
       joining_date: defaultValues?.joining_date ?? null,
@@ -109,22 +111,24 @@ export function ResidentForm({
               {...register("email")}
             />
           </FormField>
-          <FormField label="Resident Type" required>
-            <Select
-              value={residentType}
-              onValueChange={(value) =>
-                setValue("type", (value ?? "pg") as "pg" | "hostel")
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pg">PG Resident</SelectItem>
-                <SelectItem value="hostel">Hostel Student</SelectItem>
-              </SelectContent>
-            </Select>
-          </FormField>
+          {!defaultType && (
+            <FormField label="Resident Type" required>
+              <Select
+                value={residentType}
+                onValueChange={(value) =>
+                  setValue("type", (value ?? "pg") as "pg" | "hostel")
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pg">PG Resident</SelectItem>
+                  <SelectItem value="hostel">Hostel Student</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
           <FormField label="Gender">
             <Select
               value={gender ?? ""}

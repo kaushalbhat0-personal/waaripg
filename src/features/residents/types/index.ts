@@ -17,6 +17,9 @@ export type ResidentListDto = Pick<
   | "joining_date"
   | "occupation"
   | "institution_name"
+  | "course"
+  | "guardian_name"
+  | "guardian_phone"
   | "city"
   | "created_at"
 >;

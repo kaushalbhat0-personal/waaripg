@@ -1,58 +1,88 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Resident } from "@/types";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type QueryBuilder = any;
-
-export async function findAll(options?: {
+export async function findAll(params: {
   search?: string;
   status?: string;
   page?: number;
   pageSize?: number;
 }) {
   const supabase = await createClient();
-  let query: QueryBuilder = supabase
+  const { search, status, page = 1, pageSize = 10 } = params;
+
+  let query = supabase
     .from("residents")
-    .select("*", { count: "exact" })
-    .eq("type", "hostel");
+    .select("*, emergency_contacts(*)", { count: "exact" })
+    .eq("type", "hostel")
+    .is("deleted_at", null);
 
-  if (options?.search) {
-    query = query.or(`name.ilike.%${options.search}%,phone.ilike.%${options.search}%`);
-  }
-  if (options?.status) {
-    query = query.eq("status", options.status);
+  if (search) {
+    query = query.or(
+      `name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%,institution_name.ilike.%${search}%,roll_number.ilike.%${search}%`,
+    );
   }
 
-  const page = options?.page ?? 1;
-  const pageSize = options?.pageSize ?? 10;
+  if (status) {
+    query = query.eq("status", status);
+  }
+
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  query = query.range(from, to).order("created_at", { ascending: false });
+  const { data, error, count } = await query
+    .range(from, to)
+    .order("created_at", { ascending: false });
 
-  const result = await query;
-  return result as { data: Record<string, unknown>[] | null; count: number | null; error: { message: string } | null };
+  return { data: (data ?? []) as Resident[], error, count: count ?? 0 };
 }
 
 export async function findById(id: string) {
   const supabase = await createClient();
-  const result = await supabase.from("residents").select("*").eq("id", id).eq("type", "hostel").single();
-  return result as { data: Record<string, unknown> | null; error: { message: string } | null };
+
+  const { data, error } = await supabase
+    .from("residents")
+    .select("*, emergency_contacts(*)")
+    .eq("id", id)
+    .eq("type", "hostel")
+    .is("deleted_at", null)
+    .single();
+
+  return { data: data as Resident | null, error };
 }
 
-export async function create(data: Record<string, unknown>) {
+export async function create(data: Partial<Resident>) {
   const supabase = await createClient();
-  const result = await supabase.from("residents").insert({ ...data, type: "hostel" } as never).select().single();
-  return result as { data: Record<string, unknown> | null; error: { message: string } | null };
+
+  const { data: resident, error } = await supabase
+    .from("residents")
+    .insert({ ...data, type: "hostel" } as never)
+    .select("*, emergency_contacts(*)")
+    .single();
+
+  return { data: resident as Resident | null, error };
 }
 
-export async function update(id: string, data: Record<string, unknown>) {
+export async function update(id: string, data: Partial<Resident>) {
   const supabase = await createClient();
-  const result = await supabase.from("residents").update(data as never).eq("id", id).select().single();
-  return result as { data: Record<string, unknown> | null; error: { message: string } | null };
+
+  const { data: resident, error } = await supabase
+    .from("residents")
+    .update(data as never)
+    .eq("id", id)
+    .select("*, emergency_contacts(*)")
+    .single();
+
+  return { data: resident as Resident | null, error };
 }
 
 export async function remove(id: string) {
   const supabase = await createClient();
-  const result = await supabase.from("residents").delete().eq("id", id);
-  return result as { error: { message: string } | null };
+
+  const { error } = await supabase
+    .from("residents")
+    .update({ deleted_at: new Date().toISOString(), status: "terminated" } as never)
+    .eq("id", id)
+    .eq("type", "hostel");
+
+  return { error };
 }
